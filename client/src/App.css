@@ -1,0 +1,22 @@
+/* src/App.css */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+}
+
+tr:hover {
+  background-color: #f5f5f5;
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  padding: 8px 0;
+}

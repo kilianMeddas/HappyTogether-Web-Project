@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+
+var app = require('../app')
+
+var port = process.env.PORT || 5050
+app.set('port', port)
+
+app.listen(port, () => {
+  const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`
+
+  console.log(`Server is running!`)
+  console.log(`Swagger UI: ${baseUrl}/api-docs`)
+})

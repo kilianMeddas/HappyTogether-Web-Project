@@ -1,0 +1,483 @@
+openapi: 3.0.0
+info:
+  title: HappyTogether API
+  description: API for managing shared apartment life (tasks, expenses, voting, and social feedback).
+  version: 1.0.0
+
+servers:
+  - url: https://happytogether.onrender.com
+    description: Production Server
+  - url: http://localhost:5050
+    description: Local Development Server
+
+tags:
+  - name: Authentication
+    description: Registration and Login operations
+  - name: Profile
+    description: User profile and roommate management
+  - name: Apartments
+    description: Group/Apartment management
+  - name: Calendar
+    description: Chores and task management
+  - name: Decision Making
+    description: Group polls and voting
+  - name: Leaderboard
+    description: Apartment feedback and social drama system
+  - name: Finance
+    description: Expenses and financial balances
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: user
+
+  schemas:
+    User:
+      type: object
+      properties:
+        mail: { type: string, example: 'margot.robbie@hollywood.com' }
+        firstName: { type: string, example: 'Margot' }
+        name: { type: string, example: 'Robbie' }
+        dateBirth: { type: string, format: date, example: '1990-07-02' }
+        telephone: { type: string, example: '0601020304' }
+        _GroupId: { type: string, example: 'Beverly_Hills_Mansion' }
+
+    Apartment:
+      type: object
+      properties:
+        _id: { type: string, example: 'Beverly_Hills_Mansion' }
+        maxPeople: { type: integer, example: 10 }
+        currentPeople: { type: integer, example: 4 }
+        createdAt:
+          { type: string, format: date-time, example: '2023-01-01T10:00:00Z' }
+
+    Chore:
+      type: object
+      properties:
+        id: { type: string, example: 'chore_123' }
+        title: { type: string, example: 'Vacuum the Red Carpet' }
+        start:
+          { type: string, format: date-time, example: '2024-04-10T09:00:00Z' }
+        end: { type: string, format: date-time, nullable: true }
+        extendedProps:
+          type: object
+          properties:
+            completed: { type: boolean, example: false }
+            createdBy: { type: string, example: 'tom.hanks@hollywood.com' }
+
+    Expense:
+      type: object
+      required: [label, cost]
+      properties:
+        _id: { type: string, example: 'exp_456' }
+        label: { type: string, example: 'Fancy Outfits for Lady Gaga' }
+        cost: { type: number, format: float, example: 15000.75 }
+        buyer: { type: string, example: 'lady.gaga@hollywood.com' }
+        _GroupId: { type: string, example: 'Beverly_Hills_Mansion' }
+        createdAt:
+          { type: string, format: date-time, example: '2024-04-05T14:30:00Z' }
+
+    Poll:
+      type: object
+      properties:
+        _id: { type: string, example: 'poll_789' }
+        question:
+          { type: string, example: 'Which movie should we watch tonight?' }
+        _GroupId: { type: string, example: 'Beverly_Hills_Mansion' }
+        options:
+          type: array
+          items:
+            type: object
+            properties:
+              text: { type: string, example: 'Barbie' }
+              votes: { type: integer, example: 5 }
+        voters:
+          type: array
+          items: { type: string, example: 'tom.hanks@hollywood.com' }
+        currentUserHasVoted: { type: boolean, example: true }
+        createdAt: { type: string, format: date-time }
+
+    Leaderboard:
+      type: object
+      properties:
+        _id: { type: string, example: 'drama_999' }
+        subject:
+          { type: string, example: 'Tom Hanks forgot to buy milk... again.' }
+        _GroupId: { type: string, example: 'Beverly_Hills_Mansion' }
+        author: { type: string, example: 'margot.robbie@hollywood.com' }
+        votes:
+          type: object
+          properties:
+            good: { type: integer, example: 0 }
+            neutral: { type: integer, example: 1 }
+            bad: { type: integer, example: 12 }
+        createdAt: { type: string, format: date-time }
+
+paths:
+  # --- AUTHENTICATION ---
+  /registration:
+    post:
+      tags: [Authentication]
+      summary: Register a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mail, password, firstName, name, SelectedGroup]
+              properties:
+                mail: { type: string, example: 'tom.hanks@hollywood.com' }
+                password: { type: string, example: 'ForrestGump123!' }
+                firstName: { type: string, example: 'Tom' }
+                name: { type: string, example: 'Hanks' }
+                dateBirth: { type: string, example: '1956-07-09' }
+                telephone: { type: string, example: '0612345678' }
+                SelectedGroup:
+                  { type: string, example: 'Beverly_Hills_Mansion' }
+      responses:
+        201: { description: User successfully created }
+        400: { description: Invalid data or apartment full }
+
+  /login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mail: { type: string, example: 'lady.gaga@hollywood.com' }
+                password: { type: string, example: 'PokerFace2024' }
+      responses:
+        200: { description: Successfully logged in (Cookie set) }
+        401: { description: Invalid credentials }
+
+  # --- PROFILE ---
+  /me:
+    get:
+      tags: [Profile]
+      summary: Get basic session info
+      security: [{ cookieAuth: [] }]
+      responses:
+        200:
+          description: Logged-in user information
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /myprofile:
+    get:
+      tags: [Profile]
+      summary: Get full profile details
+      security: [{ cookieAuth: [] }]
+      responses:
+        200:
+          description: Detailed profile information
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /myprofile/update:
+    put:
+      tags: [Profile]
+      summary: Update profile info
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName: { type: string, example: 'Lady' }
+                name: { type: string, example: 'Gaga' }
+                dateBirth: { type: string, example: '1986-03-28' }
+                telephone: { type: string, example: '0788990011' }
+      responses:
+        200: { description: Profile updated }
+
+  # --- APARTMENTS ---
+  /apartments:
+    get:
+      tags: [Apartments]
+      summary: List all available apartments
+      security: [{ cookieAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Apartment' }
+
+  /apartments/create:
+    post:
+      tags: [Apartments]
+      summary: Create a new apartment group
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                _id: { type: string, example: 'Celebrity_Island' }
+                maxPeople: { type: integer, example: 50 }
+      responses:
+        200: { description: Apartment created }
+
+  # --- CALENDAR ---
+  /calendar:
+    get:
+      tags: [Calendar]
+      summary: Get apartment chores
+      security: [{ cookieAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Chore' }
+
+  /calendar/add:
+    post:
+      tags: [Calendar]
+      summary: Add a new task/chore
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, start]
+              properties:
+                title: { type: string, example: 'Walk the 50 dogs' }
+                start:
+                  {
+                    type: string,
+                    format: date-time,
+                    example: '2024-04-12T08:00:00Z',
+                  }
+                end: { type: string, format: date-time }
+      responses:
+        200: { description: Task added }
+
+  /calendar/{id}:
+    put:
+      tags: [Calendar]
+      summary: Update task status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                completed: { type: boolean, example: true }
+      responses:
+        200: { description: Status updated }
+    delete:
+      tags: [Calendar]
+      summary: Delete a task (Creator only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200: { description: Task deleted }
+        403: { description: Unauthorized to delete this task }
+
+  # --- DECISION MAKING ---
+  /DecisionMaking:
+    get:
+      tags: [Decision Making]
+      summary: List group polls
+      security: [{ cookieAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Poll' }
+
+  /DecisionMaking/create:
+    post:
+      tags: [Decision Making]
+      summary: Create a new poll
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question: { type: string, example: 'Who is the best roommate?' }
+                options:
+                  {
+                    type: array,
+                    items: { type: string },
+                    example: ['Margot', 'Tom', 'Gaga'],
+                  }
+      responses:
+        200: { description: Poll created }
+
+  /DecisionMaking/vote:
+    post:
+      tags: [Decision Making]
+      summary: Submit a vote
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                voteId: { type: string, example: 'poll_789' }
+                optionIndex: { type: integer, example: 0 }
+      responses:
+        200: { description: Vote recorded }
+        400: { description: Already voted or invalid poll ID }
+
+  # --- LEADERBOARD / DRAMA ---
+  /leaderboard:
+    get:
+      tags: [Leaderboard]
+      summary: Get all apartment drama entries
+      security: [{ cookieAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Drama' }
+    post:
+      tags: [Leaderboard]
+      summary: Report a new drama
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subject:
+                  {
+                    type: string,
+                    example: 'Lady Gaga wore my shoes without asking!',
+                  }
+      responses:
+        200: { description: Drama created }
+    delete:
+      tags: [Leaderboard]
+      summary: Bulk delete drama entries
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items: { type: string, example: ['drama_999'] }
+      responses:
+        200: { description: Deletion successful }
+
+  /leaderboard/{id}/vote:
+    patch:
+      tags: [Leaderboard]
+      summary: Vote on a drama entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  { type: string, enum: [bad, neutral, good], example: 'bad' }
+      responses:
+        200: { description: Vote recorded }
+
+  # --- FINANCE ---
+  /expenses:
+    post:
+      tags: [Finance]
+      summary: Create a new expense
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, cost]
+              properties:
+                label: { type: string, example: 'Private Jet Fuel' }
+                cost: { type: number, example: 50000.00 }
+      responses:
+        201: { description: Expense created }
+        400: { description: Missing required fields }
+
+  /expenses/me:
+    get:
+      tags: [Finance]
+      summary: Get my personal expenses
+      security: [{ cookieAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Expense' }
+
+  /expenses/apartment:
+    get:
+      tags: [Finance]
+      summary: Get apartment group expenses
+      security: [{ cookieAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Expense' }
+
+  /balances/apartment:
+    get:
+      tags: [Finance]
+      summary: Get apartment financial balance
+      security: [{ cookieAuth: [] }]
+      responses:
+        200: { description: List of group balances }
+
+  /balances/me:
+    get:
+      tags: [Finance]
+      summary: Get personal financial balance
+      security: [{ cookieAuth: [] }]
+      responses:
+        200: { description: Personal balance data }
